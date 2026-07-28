@@ -14,7 +14,8 @@
     "dev:wa": "node apps/whatsapp-bot/src/main.mjs",
     "test": "node --test packages/*/test/*.test.mjs",
     "db:up": "docker compose up -d postgres",
-    "db:init": "psql \"$DATABASE_URL\" -f packages/db/schema.sql"
+    "db:init": "psql \"$DATABASE_URL\" -f packages/db/schema.sql",
+    "setup:db": "bash scripts/setup-db.sh"
   },
   "engines": {
     "node": ">=20.6"

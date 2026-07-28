@@ -33,9 +33,8 @@ export async function createRepos(config, logger) {
     throw new ConfigError(
       `Tidak bisa konek ke PostgreSQL di ${hostPort || 'DATABASE_URL'} (${codes || err.message || 'koneksi ditolak'}).\n`
       + 'Perbaiki salah satu:\n'
-      + '  a) Install PostgreSQL native:  sudo apt install -y postgresql\n'
-      + '     lalu: sudo -u postgres psql -c "CREATE USER aria PASSWORD \'aria\'; CREATE DATABASE aria OWNER aria;"\n'
-      + '  b) Atau pakai Docker:          sudo apt install -y docker.io docker-compose-v2 && npm run db:up\n'
+      + '  a) PostgreSQL native:  sudo apt-get install -y postgresql && npm run setup:db\n'
+      + '  b) Atau pakai Docker:  sudo apt-get install -y docker.io docker-compose-v2 && npm run db:up\n'
       + '  c) Atau kosongkan DATABASE_URL di .env untuk mode in-memory (dev).',
       { cause: err },
     );

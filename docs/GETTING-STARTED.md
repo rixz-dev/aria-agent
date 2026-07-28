@@ -51,16 +51,18 @@ npm install && npm test
 # 3. Database — pilih SALAH SATU:
 #    a) PostgreSQL native (tanpa Docker):
 sudo apt-get install -y postgresql
-sudo -u postgres psql -c "CREATE USER aria PASSWORD 'aria'; CREATE DATABASE aria OWNER aria;"
+npm run setup:db        # buat user+db 'aria' (idempotent), lalu print baris DATABASE_URL
 #    b) Atau Docker:
 sudo apt-get install -y docker.io docker-compose-v2 && docker compose up -d postgres
-#    ...lalu uncomment DATABASE_URL di .env. Schema auto-migrate saat boot.
 #    c) Atau biarkan DATABASE_URL kosong: jalan dengan storage in-memory.
+#    Setelah a/b: uncomment DATABASE_URL di .env. Schema auto-migrate saat boot.
 
 # 4. Jalankan ketiga service via PM2 (auto-restart + jalan setelah reboot)
-sudo npm install -g pm2
+sudo npm install -g pm2     # <- perlu sudo
 pm2 start deploy/ecosystem.config.cjs
-pm2 save && pm2 startup    # salin command yang diminta, lalu jalanin
+pm2 save && pm2 startup     # salin command yang diminta (biasanya: sudo env PATH=... pm2 startup systemd ...), jalanin
+pm2 logs aria-orchestrator  # harusnya terlihat: "schema database diterapkan"
+pm2 logs aria-whatsapp      # pertama kali: scan QR dari WhatsApp (Perangkat Tertaut)
 ```
 
 ## Keamanan default
@@ -78,7 +80,9 @@ pm2 save && pm2 startup    # salin command yang diminta, lalu jalanin
 | `EBADENGINE` / `baileys … requires Node.js 20+` / `node: bad option: --test` | Node apt jammy = v12 | Install Node 20 via NodeSource (langkah 1 di atas) |
 | `dpkg … trying to overwrite '/usr/include/node/common.gypi'` saat upgrade | konflik `libnode-dev` v12 | `sudo dpkg --remove --force-remove-reinstreq libnode-dev` lalu `sudo apt-get install -f` |
 | `orchestrator gagal start` dengan error PostgreSQL / ECONNREFUSED | `DATABASE_URL` mengarah ke Postgres yang belum terinstal/jalan | Langkah 3 di atas, atau kosongkan `DATABASE_URL` |
-| `docker: not found` saat `npm run db:up` | Docker belum terinstal | Opsi (a) Postgres native di langkah 3 — tidak butuh Docker |
+| PostgreSQL: `CREATE DATABASE cannot run inside a transaction block` | `psql -c` dengan 2 statement digabung jadi satu transaksi | Pakai `npm run setup:db` (statement terpisah). Interaktif: ketik tiap statement satu per satu di prompt `psql` |
+| `could not change directory to "/home/...": Permission denied` saat `sudo -u postgres` | warning kosmetik — user postgres tak bisa baca home-mu | Abaikan; bukan error |
+| PM2: `EACCES mkdir /usr/lib/node_modules/pm2` | install global npm perlu root | `sudo npm install -g pm2` |
 | Telegram bot diam / log `409 Conflict` | Dua proses polling token yang sama (mis. bot lama masih jalan) | `pm2 delete` duplikatnya / hentikan proses lama |
 | WhatsApp: `koneksi WA tertutup status 408` / QR tak kunjung muncul | butuh internet keluar bebas ke `web.whatsapp.com` | Cek firewall egress; coba lagi, QR akan muncul begitu handshake berhasil |
 | `akses ditolak (bukan owner)` di log telegram | `TELEGRAM_OWNER_IDS` salah/harus ID numeric | Ambil ID numeric kamu dari @userinfobot, tanpa @ |

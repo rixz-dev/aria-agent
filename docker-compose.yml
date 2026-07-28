@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aria-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aria
+      POSTGRES_USER: aria
+      POSTGRES_PASSWORD: aria
+    ports:
+      - "5432:5432"
+    volumes:
+      - aria-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aria -d aria"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  aria-pgdata:

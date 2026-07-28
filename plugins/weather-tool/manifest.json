@@ -1,0 +1,8 @@
+{
+  "name": "weather-tool",
+  "version": "1.0.0",
+  "type": "tool",
+  "description": "Cek cuaca kota manapun via Open-Meteo (tanpa API key).",
+  "entry": "index.js",
+  "permissions": ["network"]
+}

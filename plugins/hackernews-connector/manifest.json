@@ -1,0 +1,8 @@
+{
+  "name": "hackernews-connector",
+  "version": "1.0.0",
+  "type": "connector",
+  "description": "Konektor contoh: tarik top stories HackerNews via API Algolia (tanpa auth).",
+  "entry": "index.js",
+  "permissions": ["network"]
+}

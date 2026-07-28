@@ -1,0 +1,15 @@
+{
+  "name": "@aria/telegram-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.mjs"
+  },
+  "dependencies": {
+    "@aria/shared": "*",
+    "@aria/core": "*",
+    "express": "^4.21.2",
+    "grammy": "^1.32.0"
+  }
+}

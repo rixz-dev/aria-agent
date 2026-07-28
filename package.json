@@ -1,0 +1,22 @@
+{
+  "name": "aria-agent",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ARIA — personal AI agent: orchestrator pusat + antarmuka Telegram + multi-provider AI router + plugin system",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:orchestrator": "node apps/orchestrator/src/main.mjs",
+    "dev:telegram": "node apps/telegram-bot/src/main.mjs",
+    "dev:wa": "node apps/whatsapp-bot/src/main.mjs",
+    "test": "node --test packages/*/test/*.test.mjs",
+    "db:up": "docker compose up -d postgres",
+    "db:init": "psql \"$DATABASE_URL\" -f packages/db/schema.sql"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}

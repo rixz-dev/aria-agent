@@ -1,5 +1,11 @@
 # ARIA — Blueprint Arsitektur (v2)
 
+> **Status repo:** milestone 1–7 dari §8 sudah diimplementasikan (Bot Telegram, Orchestrator inti,
+> Provider Router v1, Bot WA, Database, Ringkas Chat, Plugin Manager v1). Lihat
+> [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) untuk cara menjalankan dan
+> [`docs/PLUGIN.md`](docs/PLUGIN.md) untuk panduan menulis plugin. Blueprint di bawah
+> tetap jadi referensi desain.
+
 ## 1. Ringkasan
 ARIA adalah AI agent personal (mirip JARVIS) dengan satu orchestrator pusat di VPS, memanggil beberapa "anggota badan" (bot & service) sebagai eksekutor. Semua interaksi & approval lewat satu bot Telegram. Termux di HP cuma dipanggil on-demand untuk akses spesifik perangkat. Orchestrator bisa "gonta-ganti otak" lewat multi-provider AI, dan seluruh sistem bisa diperluas lewat **plugin system**.
 

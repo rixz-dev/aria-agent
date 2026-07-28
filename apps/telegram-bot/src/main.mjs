@@ -208,8 +208,8 @@ notifyApp.post('/notify/approval', async (req, res) => {
 notifyApp.get('/health', (req, res) => res.json({ ok: true }));
 
 // --- start -------------------------------------------------------------------
-const server = notifyApp.listen(config.telegram.notifyPort, () => {
-  logger.info(`notify endpoint berjalan di :${config.telegram.notifyPort}`);
+const server = notifyApp.listen(config.telegram.notifyPort, config.bindHost, () => {
+  logger.info(`notify endpoint berjalan di ${config.bindHost}:${config.telegram.notifyPort}`);
 });
 
 bot.catch((err) => logger.error('bot error', { error: String(err.error || err) }));

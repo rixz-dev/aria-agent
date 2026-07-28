@@ -51,8 +51,8 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message });
 });
 
-const server = app.listen(config.whatsapp.servicePort, () => {
-  logger.info(`WA service berjalan di :${config.whatsapp.servicePort}`, wa.status());
+const server = app.listen(config.whatsapp.servicePort, config.bindHost, () => {
+  logger.info(`WA service berjalan di ${config.bindHost}:${config.whatsapp.servicePort}`, wa.status());
 });
 
 const shutdown = () => {

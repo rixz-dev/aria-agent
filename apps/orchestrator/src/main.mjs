@@ -126,8 +126,8 @@ async function main() {
     res.status(status).json({ error: err.message });
   });
 
-  const server = app.listen(config.orchestrator.port, () => {
-    logger.info(`orchestrator berjalan di :${config.orchestrator.port}`, {
+  const server = app.listen(config.orchestrator.port, config.bindHost, () => {
+    logger.info(`orchestrator berjalan di ${config.bindHost}:${config.orchestrator.port}`, {
       db: repos.kind,
       providers: router.status().map((p) => `${p.name}:${p.state}`),
       plugins: plugins.status().map((p) => `${p.name}:${p.status}`),
@@ -146,6 +146,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  logger.error('orchestrator gagal start', { error: err.message });
+  logger.error('orchestrator gagal start', { error: err });
   process.exit(1);
 });

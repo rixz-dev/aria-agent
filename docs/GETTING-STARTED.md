@@ -18,14 +18,14 @@ menjalankan hasil implementasi milestone 1–6.
 | 9. Termux on-demand | belum | — |
 | 10. Browser & coding agent | belum | `opencode` provider CLI sudah ada sebagai fondasi coding-agent |
 
-## Menjalankan lokal
+## Menjalankan lokal / VPS
 
 ```bash
 cp .env.example .env        # isi token & API key
 npm install                 # install semua workspace
-npm test                    # 40+ unit test
+npm test                    # 46 unit test
 
-# Terminal 1 — orchestrator (tanpa DATABASE_URL otomatis pakai in-memory)
+# Terminal 1 — orchestrator (DATABASE_URL kosong -> mode in-memory)
 npm run dev:orchestrator
 
 # Terminal 2 — bot Telegram (antarmuka utama)
@@ -35,13 +35,53 @@ npm run dev:telegram
 npm run dev:wa
 ```
 
-Database sungguhan:
+## Setup VPS fresh (Ubuntu 22.04, DigitalOcean)
 
 ```bash
-npm run db:up               # PostgreSQL via docker compose
-# DATABASE_URL di .env sudah default ke postgres://aria:aria@localhost:5432/aria
-# schema diterapkan otomatis saat orchestrator boot (schema.sql idempotent)
+# 1. Node.js 20 (repo apt bawaan jammy itu Node 12 — jangan dipakai)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# 2. Clone & install
+git clone <repo> aria && cd aria
+cp .env.example .env      # isi TELEGRAM_BOT_TOKEN, TELEGRAM_OWNER_IDS,
+                          # ARIA_INTERNAL_TOKEN (acak panjang), API key provider
+npm install && npm test
+
+# 3. Database — pilih SALAH SATU:
+#    a) PostgreSQL native (tanpa Docker):
+sudo apt-get install -y postgresql
+sudo -u postgres psql -c "CREATE USER aria PASSWORD 'aria'; CREATE DATABASE aria OWNER aria;"
+#    b) Atau Docker:
+sudo apt-get install -y docker.io docker-compose-v2 && docker compose up -d postgres
+#    ...lalu uncomment DATABASE_URL di .env. Schema auto-migrate saat boot.
+#    c) Atau biarkan DATABASE_URL kosong: jalan dengan storage in-memory.
+
+# 4. Jalankan ketiga service via PM2 (auto-restart + jalan setelah reboot)
+sudo npm install -g pm2
+pm2 start deploy/ecosystem.config.cjs
+pm2 save && pm2 startup    # salin command yang diminta, lalu jalanin
 ```
+
+## Keamanan default
+
+- Semua HTTP internal (orchestrator `:4100`, notify `:4200`, WA `:4300`) **bind ke
+  `127.0.0.1`** — tidak terekspos ke internet. Jangan buka port-port ini di
+  firewall; lapis keamanannya `ARIA_BIND_HOST` + header `x-aria-token`.
+- Bot Telegram hanya menanggapi user ID di `TELEGRAM_OWNER_IDS`.
+- `.env` tidak pernah di-commit (sudah di-.gitignore). Di VPS: `chmod 600 .env`.
+
+## Troubleshooting
+
+| Gejala | Sebab | Solusi |
+|---|---|---|
+| `EBADENGINE` / `baileys … requires Node.js 20+` / `node: bad option: --test` | Node apt jammy = v12 | Install Node 20 via NodeSource (langkah 1 di atas) |
+| `dpkg … trying to overwrite '/usr/include/node/common.gypi'` saat upgrade | konflik `libnode-dev` v12 | `sudo dpkg --remove --force-remove-reinstreq libnode-dev` lalu `sudo apt-get install -f` |
+| `orchestrator gagal start` dengan error PostgreSQL / ECONNREFUSED | `DATABASE_URL` mengarah ke Postgres yang belum terinstal/jalan | Langkah 3 di atas, atau kosongkan `DATABASE_URL` |
+| `docker: not found` saat `npm run db:up` | Docker belum terinstal | Opsi (a) Postgres native di langkah 3 — tidak butuh Docker |
+| Telegram bot diam / log `409 Conflict` | Dua proses polling token yang sama (mis. bot lama masih jalan) | `pm2 delete` duplikatnya / hentikan proses lama |
+| WhatsApp: `koneksi WA tertutup status 408` / QR tak kunjung muncul | butuh internet keluar bebas ke `web.whatsapp.com` | Cek firewall egress; coba lagi, QR akan muncul begitu handshake berhasil |
+| `akses ditolak (bukan owner)` di log telegram | `TELEGRAM_OWNER_IDS` salah/harus ID numeric | Ambil ID numeric kamu dari @userinfobot, tanpa @ |
 
 ## Cara pakai (via Telegram)
 

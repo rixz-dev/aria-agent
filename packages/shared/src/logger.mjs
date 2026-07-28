@@ -35,8 +35,24 @@ export function createLogger({ scope = 'aria', level = 'info', format = 'pretty'
 
 function safeJson(value) {
   try {
-    return JSON.stringify(value, (key, val) => (val instanceof Error ? { message: val.message, code: val.code } : val));
+    return JSON.stringify(value, (key, val) => (val instanceof Error ? serializeError(val) : val));
   } catch {
     return '[unserializable meta]';
   }
+}
+
+/**
+ * Error -> object loggable. Menangani kasus tricky:
+ *  - AggregateError (message sering "" di Node 20): ikutkan sub-error codes
+ *  - cause chain: ikutkan pesan penyebabnya
+ */
+function serializeError(err) {
+  const out = { name: err.name, code: err.code, message: err.message };
+  for (const key of Object.keys(out)) if (out[key] === undefined) delete out[key];
+  if (Array.isArray(err.errors) && err.errors.length > 0) {
+    out.errors = err.errors.map((e) => `${e.code || '?'}: ${e.message || ''}`.slice(0, 120));
+  }
+  if (err.cause instanceof Error) out.cause = `${err.cause.code || ''} ${err.cause.message}`.trim();
+  if (out.message === '' && !out.errors) out.message = String(err);
+  return out;
 }

@@ -68,6 +68,7 @@ export function loadConfig(env = process.env) {
     nodeEnv,
     isProd,
     internalToken,
+    bindHost: env.ARIA_BIND_HOST || '127.0.0.1',
     databaseUrl: env.DATABASE_URL || '',
     approvalTtlMs: int(env.APPROVAL_TTL_MS, 300_000),
     pluginsDir: env.PLUGINS_DIR || './plugins',

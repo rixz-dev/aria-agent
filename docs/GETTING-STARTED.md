@@ -105,7 +105,9 @@ cd aria && cp /tmp/aria-env-backup .env && npm install
 | `could not change directory to "/home/...": Permission denied` saat `sudo -u postgres` | warning kosmetik — user postgres tak bisa baca home-mu | Abaikan; bukan error |
 | PM2: `EACCES mkdir /usr/lib/node_modules/pm2` | install global npm perlu root | `sudo npm install -g pm2` |
 | Telegram bot diam / log `409 Conflict` | Dua proses polling token yang sama (mis. bot lama masih jalan) | `pm2 delete` duplikatnya / hentikan proses lama |
-| WhatsApp: `koneksi WA tertutup status 408` / QR tak kunjung muncul | butuh internet keluar bebas ke `web.whatsapp.com` | Cek firewall egress; coba lagi, QR akan muncul begitu handshake berhasil |
+| WhatsApp: `koneksi WA tertutup status 408` / QR muncul berulang | QR belum sempat di-scan lalu kedaluwarsa (normal, QR berganti ±20 dtk) | Jalankan `pm2 logs aria-whatsapp --lines 30`, scan SECEPATNYA begitu QR baru muncul (WA → Perangkat Tertaut) |
+| Telegram: `orchestrator: timeout setelah 90000ms` | Ada provider yang menggantung (endpoint tak merespons) | `npm run doctor` kini mem-probe endpoint provider ≤8 dtk — keluarkan provider macet dari `PROVIDERS_ENABLED`/`ROUTE_*`. Versi terbaru membatasi: intent 20 dtk/attempt, budget total 80 dtk |
+| Provider lambat/hang dari droplet | Jalur jaringan/DNS/IPv6 ke endpoint | Uji: `curl -sS -m 10 -o /dev/null -w "%{http_code} %{time_total}s\n" <base>/models -H "Authorization: Bearer <key>"` (coba `curl -4` untuk paksa IPv4) |
 | `akses ditolak (bukan owner)` di log telegram | `TELEGRAM_OWNER_IDS` salah/harus ID numeric | Ambil ID numeric kamu dari @userinfobot, tanpa @ |
 
 ## Cara pakai (via Telegram)

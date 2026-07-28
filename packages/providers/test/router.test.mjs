@@ -117,3 +117,65 @@ test('route melewati provider yang tidak terdaftar', async () => {
   assert.equal(result.provider, 'b');
   assert.equal(result.attempts[0].skipped, true);
 });
+
+// Provider yang MENGGANTUNG (kasus nyata: endpoint tak menjawab).
+class HangingProvider extends AIProvider {
+  constructor(name, { respectSignal = true } = {}) {
+    super();
+    this.name = name;
+    this.respectSignal = respectSignal;
+    this.lastOptions = null;
+  }
+  chat(messages, options) {
+    this.lastOptions = options;
+    if (!this.respectSignal) return new Promise(() => {}); // hang selamanya
+    return new Promise((_, reject) => {
+      options.signal.addEventListener('abort', () =>
+        reject(new ProviderError(`${this.name}: digantung lalu di-abort`, { provider: this.name, retryable: true })));
+    });
+  }
+}
+
+test('budget route: provider menggantung di-abort, total tidak melampaui budget', async () => {
+  const router = new ProviderRouter({ routes: { chat: ['slow', 'fast'] }, routeBudgetMs: 150 });
+  const slow = new HangingProvider('slow');
+  const fast = new FakeProvider('fast', {});
+  router.register(slow).register(fast);
+
+  const t0 = Date.now();
+  // slow mengonsumsi seluruh budget (digantung 150ms) -> fast tidak sempat dicoba.
+  await assert.rejects(() => router.chat('chat', [{ role: 'user', content: 'x' }]), AllProvidersFailedError);
+  const elapsed = Date.now() - t0;
+  assert.ok(elapsed < 1000, `harus selesai ~budget 150ms, bukan ${elapsed}ms`);
+});
+
+test('budget habis tercatat di attempts dengan skenario field skipped', async () => {
+  const router = new ProviderRouter({ routes: { chat: ['slow', 'fast'] }, routeBudgetMs: 150 });
+  router.register(new HangingProvider('slow')).register(new FakeProvider('fast', {}));
+  await assert.rejects(
+    () => router.chat('chat', [{ role: 'user', content: 'x' }]),
+    (err) => {
+      assert.ok(err instanceof AllProvidersFailedError);
+      assert.ok(err.attempts.some((a) => a.name === 'slow' && /abort|budget/.test(a.error)));
+      assert.ok(err.attempts.some((a) => a.name === 'fast' && a.skipped === true));
+      return true;
+    },
+  );
+});
+
+test('timeout per-task diteruskan ke provider (intent lebih singkat dari default)', async () => {
+  const router = new ProviderRouter({
+    routes: { intent: ['probe'] },
+    taskTimeouts: { intent: 5_000 },
+    routeBudgetMs: 80_000,
+  });
+  const probe = new HangingProvider('probe');
+  probe.chat = async (messages, options) => {
+    probe.lastOptions = options;
+    return { text: 'ok' };
+  };
+  router.register(probe);
+  await router.chat('intent', [{ role: 'user', content: 'x' }]);
+  assert.ok(probe.lastOptions.timeoutMs <= 5_000, `intent cap 5s, dapat ${probe.lastOptions.timeoutMs}ms`);
+  assert.equal(probe.lastOptions.task, 'intent');
+});

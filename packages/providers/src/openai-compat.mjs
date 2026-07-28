@@ -34,8 +34,10 @@ export class OpenAICompatProvider extends AIProvider {
       throw new ConfigError(`provider '${this.name}': API key belum di-set`);
     }
     const model = options.model || this.defaultModel;
+    // Timeout efektif = min(batas provider, override per-call dari router/caller).
+    const timeoutMs = Math.min(this.timeoutMs, options.timeoutMs ?? Infinity);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     if (options.signal) {
       options.signal.addEventListener('abort', () => controller.abort(), { once: true });
     }
@@ -62,7 +64,7 @@ export class OpenAICompatProvider extends AIProvider {
       });
     } catch (err) {
       if (err.name === 'AbortError') {
-        throw new ProviderError(`${this.name}: timeout ${this.timeoutMs}ms`, { provider: this.name, retryable: true, cause: err });
+        throw new ProviderError(`${this.name}: timeout ${timeoutMs}ms`, { provider: this.name, retryable: true, cause: err });
       }
       throw new ProviderError(`${this.name}: ${err.message}`, { provider: this.name, retryable: true, cause: err });
     } finally {

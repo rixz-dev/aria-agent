@@ -13,19 +13,25 @@ export * from './router.mjs';
  * Provider plugin didaftarkan terpisah oleh PluginManager lewat router.register().
  */
 export function createProviderRouter(config, { onUsage, logger } = {}) {
-  const { enabled, defs, routes } = config.providers;
-  const router = new ProviderRouter({ routes, onUsage, logger: logger?.child('router') });
+  const { enabled, defs, routes, tuning = {} } = config.providers;
+  const router = new ProviderRouter({
+    routes,
+    onUsage,
+    logger: logger?.child('router'),
+    taskTimeouts: tuning.intentTimeoutMs ? { intent: tuning.intentTimeoutMs } : {},
+    routeBudgetMs: tuning.routeBudgetMs,
+  });
 
   for (const name of enabled) {
     switch (name) {
       case 'nvidia':
-        router.register(new OpenAICompatProvider({ name, ...defWithHeaders(defs.nvidia) }));
-        break;
       case 'gemini':
-        router.register(new OpenAICompatProvider({ name, ...defWithHeaders(defs.gemini) }));
-        break;
       case 'openrouter':
-        router.register(new OpenAICompatProvider({ name, ...defWithHeaders(defs.openrouter) }));
+        router.register(new OpenAICompatProvider({
+          name,
+          ...defWithHeaders(defs[name]),
+          timeoutMs: tuning.requestTimeoutMs,
+        }));
         break;
       case 'opencode':
         router.register(new OpenCodeProvider(defs.opencode));

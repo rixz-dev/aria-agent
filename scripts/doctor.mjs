@@ -79,6 +79,27 @@ if (withKey.length > 0) {
     + 'Gratis tercepat: GEMINI_API_KEY dari aistudio.google.com');
 }
 
+// Probe endpoint provider yang ber-key (≤8s). Provider yang MENGGANTUNG akan
+// menyeret setiap request dengan timeout panjang — lebih baik ketahuan di sini.
+for (const name of withKey) {
+  const def = config.providers.defs[name];
+  const probeUrl = `${def.baseUrl.replace(/\/+$/, '')}/models`;
+  const t0 = Date.now();
+  try {
+    const res = await fetch(probeUrl, {
+      headers: { authorization: `Bearer ${def.apiKey}` },
+      signal: AbortSignal.timeout(8_000),
+    });
+    const ms = Date.now() - t0;
+    if (res.ok) ok(`${name} endpoint OK (${ms}ms) — model: ${def.model}`);
+    else warn(`${name} endpoint HTTP ${res.status} (${ms}ms) — kemungkinan API key salah/kadarluarsa`);
+  } catch {
+    bad(`${name} endpoint tidak merespons ≤8s — provider ini akan menyeret setiap request dengan timeout.\n`
+      + `     Uji dari VPS: curl -sS -m 10 -o /dev/null -w "%{http_code} %{time_total}s\\n" ${probeUrl} -H "Authorization: Bearer <key>"\n`
+      + `     Kalau memang tak terjangkau dari droplet ini, keluarkan '${name}' dari PROVIDERS_ENABLED & ROUTE_*`);
+  }
+}
+
 // --- opencode CLI -------------------------------------------------------------
 if (config.providers.enabled.includes('opencode')) {
   const bin = config.providers.defs.opencode.bin;

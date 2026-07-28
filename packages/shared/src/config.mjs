@@ -64,6 +64,16 @@ export function loadConfig(env = process.env) {
     if (chain.length === 0) throw new ConfigError(`ROUTE_${task.toUpperCase()} tidak boleh kosong.`);
   }
 
+  const providerTuning = {
+    // Timeout per attempt. Intent parsing harus cepat — provider yang menggantung
+    // tidak boleh menguras budget request (temuan deploy: nvidia hang 60s x2
+    // melampaui timeout 90s di sisi Telegram).
+    requestTimeoutMs: int(env.PROVIDER_TIMEOUT_MS, 45_000),
+    intentTimeoutMs: int(env.PROVIDER_INTENT_TIMEOUT_MS, 20_000),
+    // Budget total satu routed call (semua percobaan fallback digabung).
+    routeBudgetMs: int(env.PROVIDER_ROUTE_BUDGET_MS, 80_000),
+  };
+
   const config = {
     nodeEnv,
     isProd,
@@ -76,7 +86,7 @@ export function loadConfig(env = process.env) {
       format: env.LOG_FORMAT || (isProd ? 'json' : 'pretty'),
       level: env.LOG_LEVEL || 'info',
     },
-    providers: { enabled: providersEnabled, defs: providerDefs, routes },
+    providers: { enabled: providersEnabled, defs: providerDefs, routes, tuning: providerTuning },
     orchestrator: {
       port: int(env.ORCHESTRATOR_PORT, 4100),
       publicUrl: stripSlash(env.ORCHESTRATOR_PUBLIC_URL || `http://localhost:${int(env.ORCHESTRATOR_PORT, 4100)}`),

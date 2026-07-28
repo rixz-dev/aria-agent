@@ -25,12 +25,16 @@ export class ProviderRouter {
    *           onUsage?: (entry: object) => void|Promise<void>,
    *           logger?: import('@aria/shared').createLogger }} cfg
    */
-  constructor({ routes = {}, breaker = {}, onUsage, logger } = {}) {
+  constructor({ routes = {}, breaker = {}, onUsage, logger, taskTimeouts = {}, routeBudgetMs = 90_000 } = {}) {
     this.providers = new Map();
     this.routes = routes;
     this.breaker = { ...DEFAULT_BREAKER, ...breaker };
     this.onUsage = onUsage || (() => {});
     this.logger = logger;
+    /** Timeout per attempt untuk task tertentu (mis. intent max 20s). */
+    this.taskTimeouts = taskTimeouts;
+    /** Budget wall-clock total untuk satu routed call (semua percobaan). */
+    this.routeBudgetMs = routeBudgetMs;
     /** name -> { failures: number[], openUntil: number, lastError?: string, calls: number } */
     this.health = new Map();
   }
@@ -79,29 +83,63 @@ export class ProviderRouter {
     if (chain.length === 0) {
       throw new AllProvidersFailedError(`tidak ada route untuk task '${task}'`);
     }
+
+    // Budget total: provider yang MENGGANTUNG tidak boleh menguras seluruh
+    // waktu request (fallback berikutnya tetap kebagian waktu, dan pemanggil
+    // seperti bot Telegram punya timeout sendiri yang harus dihormati).
+    const budgetMs = options.deadlineMs ?? this.routeBudgetMs;
+    const deadline = Date.now() + budgetMs;
+    const shared = new AbortController();
+    const budgetTimer = setTimeout(() => shared.abort(), budgetMs);
+
     const attempts = [];
-    for (const name of chain) {
-      if (!this.providers.has(name)) {
-        attempts.push({ name, error: 'tidak terdaftar', skipped: true });
-        continue;
-      }
-      if (this.#isOpen(name)) {
-        attempts.push({ name, error: 'circuit-open', skipped: true });
-        continue;
-      }
-      try {
-        const result = await this.call(name, messages, { ...options, task });
-        if (attempts.length > 0) {
-          this.logger?.info('provider fallback berhasil', { task, provider: name, setelah: attempts.map((a) => a.name) });
+    try {
+      for (const name of chain) {
+        if (!this.providers.has(name)) {
+          attempts.push({ name, error: 'tidak terdaftar', skipped: true });
+          continue;
         }
-        return { ...result, provider: name, attempts: attempts.length ? attempts : undefined };
-      } catch (err) {
-        attempts.push({ name, error: err.message, status: err.status });
-        this.logger?.warn('provider gagal, coba kandidat berikutnya', { task, provider: name, error: err.message });
-        // Non-retryable (mis. 401/config) tetap lanjut ke kandidat lain — chain
-        // adalah daftar provider berbeda, bukan retry provider yang sama.
-        continue;
+        if (this.#isOpen(name)) {
+          attempts.push({ name, error: 'circuit-open', skipped: true });
+          continue;
+        }
+        const remaining = deadline - Date.now();
+        // Selalu izinkan percobaan pertama; sisanya hanya kalau masih ada waktu.
+        if (attempts.length > 0 && remaining <= 500) {
+          attempts.push({ name, error: `budget route ${budgetMs}ms habis`, skipped: true });
+          continue;
+        }
+        // Timeout attempt = min(request sendiri, per-task, sisa budget).
+        const cap = options.timeoutMs ?? this.taskTimeouts[task] ?? Infinity;
+        const attemptTimeoutMs = Math.min(cap, remaining);
+        try {
+          const result = await this.call(name, messages, {
+            ...options,
+            task,
+            signal: shared.signal,
+            timeoutMs: attemptTimeoutMs,
+          });
+          if (attempts.length > 0) {
+            this.logger?.info('provider fallback berhasil', { task, provider: name, setelah: attempts.map((a) => a.name) });
+          }
+          return { ...result, provider: name, attempts: attempts.length ? attempts : undefined };
+        } catch (err) {
+          attempts.push({ name, error: err.message, status: err.status });
+          this.logger?.warn('provider gagal, coba kandidat berikutnya', { task, provider: name, error: err.message });
+          // Non-retryable (mis. 401/config) tetap lanjut ke kandidat lain — chain
+          // adalah daftar provider berbeda, bukan retry provider yang sama.
+          if (shared.signal.aborted) {
+            // Budget habis — catat sisa chain sebagai skipped biar kelihatan di log.
+            for (const rest of chain.slice(chain.indexOf(name) + 1)) {
+              attempts.push({ name: rest, error: `budget route ${budgetMs}ms habis`, skipped: true });
+            }
+            break;
+          }
+          continue;
+        }
       }
+    } finally {
+      clearTimeout(budgetTimer);
     }
     throw new AllProvidersFailedError(`semua provider untuk task '${task}' gagal/terbuka`, { attempts });
   }

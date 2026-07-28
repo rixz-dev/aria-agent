@@ -73,10 +73,30 @@ pm2 logs aria-whatsapp      # pertama kali: scan QR dari WhatsApp (Perangkat Ter
 - Bot Telegram hanya menanggapi user ID di `TELEGRAM_OWNER_IDS`.
 - `.env` tidak pernah di-commit (sudah di-.gitignore). Di VPS: `chmod 600 .env`.
 
+## Update kode di VPS
+
+```bash
+cd ~/aria
+git pull origin arena/019fa65f-aria-agent   # remote + NAMA branch (bukan URL repo)
+npm install                                  # kalau package.json berubah
+pm2 restart all
+```
+
+Jika `git pull` menolak dengan `fatal: not a git repository` → folder itu bukan
+clone git (file hasil copy manual). Pemulihan:
+
+```bash
+cp <folder-lama>/.env /tmp/aria-env-backup
+git clone -b arena/019fa65f-aria-agent https://github.com/rixz-dev/aria-agent.git aria
+cd aria && cp /tmp/aria-env-backup .env && npm install
+```
+
 ## Troubleshooting
 
 | Gejala | Sebab | Solusi |
 |---|---|---|
+| `fatal: not a git repository` | folder bukan clone (file di-copy manual) | Lihat "Update kode di VPS" di atas |
+| `git pull` dengan URL repo ditolak | argumen salah — pakai nama branch | `git pull origin arena/019fa65f-aria-agent` |
 | `EBADENGINE` / `baileys … requires Node.js 20+` / `node: bad option: --test` | Node apt jammy = v12 | Install Node 20 via NodeSource (langkah 1 di atas) |
 | `dpkg … trying to overwrite '/usr/include/node/common.gypi'` saat upgrade | konflik `libnode-dev` v12 | `sudo dpkg --remove --force-remove-reinstreq libnode-dev` lalu `sudo apt-get install -f` |
 | `orchestrator gagal start` dengan error PostgreSQL / ECONNREFUSED | `DATABASE_URL` mengarah ke Postgres yang belum terinstal/jalan | Langkah 3 di atas, atau kosongkan `DATABASE_URL` |

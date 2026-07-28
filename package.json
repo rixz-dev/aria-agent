@@ -15,7 +15,8 @@
     "test": "node --test packages/*/test/*.test.mjs",
     "db:up": "docker compose up -d postgres",
     "db:init": "psql \"$DATABASE_URL\" -f packages/db/schema.sql",
-    "setup:db": "bash scripts/setup-db.sh"
+    "setup:db": "bash scripts/setup-db.sh",
+    "doctor": "node scripts/doctor.mjs"
   },
   "engines": {
     "node": ">=20.6"

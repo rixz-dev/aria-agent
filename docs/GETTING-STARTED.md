@@ -47,6 +47,7 @@ git clone <repo> aria && cd aria
 cp .env.example .env      # isi TELEGRAM_BOT_TOKEN, TELEGRAM_OWNER_IDS,
                           # ARIA_INTERNAL_TOKEN (acak panjang), API key provider
 npm install && npm test
+npm run doctor            # cek kesiapan menyeluruh: node, .env, token, DB, API key, CLI
 
 # 3. Database — pilih SALAH SATU:
 #    a) PostgreSQL native (tanpa Docker):
